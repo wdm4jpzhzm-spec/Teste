@@ -1,0 +1,138 @@
+-- MENU MOBILE ULTIME - Stable
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local UserInputService = game:GetService("UserInputService")
+
+-- 1. CRÉATION DU CADRE
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MenuUltimate"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer.PlayerGui
+
+-- Le bouton carré (Toggle)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 10) -- Haut gauche
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleBtn.BorderSizePixel = 1
+ToggleBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Text = "☰"
+ToggleBtn.TextColor3 = Color3.new(1,1,1)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 24
+ToggleBtn.Parent = ScreenGui
+
+-- Le Menu Principal (Caché au départ)
+local MenuFrame = Instance.new("Frame")
+MenuFrame.Name = "MenuFrame"
+MenuFrame.Size = UDim2.new(0, 250, 0, 300)
+MenuFrame.Position = UDim2.new(0, 10, 0, 70) -- Juste en dessous du bouton
+MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MenuFrame.BorderSizePixel = 0
+MenuFrame.BackgroundTransparency = 0.1
+MenuFrame.ClipsDescendants = true
+MenuFrame.Parent = ScreenGui
+
+-- La croix de fermeture
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1,1,1)
+CloseBtn.Font = Enum.Font.GothamBlack
+CloseBtn.TextSize = 20
+CloseBtn.Parent = MenuFrame
+
+-- Titre du menu
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -10, 0, 40)
+Title.Position = UDim2.new(0, 5, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "MENU ULTIME"
+Title.Font = Enum.Font.GothamBold
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextSize = 20
+Title.Parent = MenuFrame
+
+-- Variable pour savoir si le menu est ouvert
+local isOpen = false
+local flyEnabled = false
+
+-- Fonction pour créer les boutons du menu
+local function CreateButton(text, color, action)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Position = UDim2.new(0, 5, 0, 50) -- Positionnement relatif
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
+    btn.Parent = MenuFrame
+    
+    -- Clic tactile et souris
+    btn.MouseButton1Click:Connect(action)
+    btn.TouchTap:Connect(action)
+    
+    return btn
+end
+
+-- 2. ACTIONS
+
+-- A. FLY (Vol)
+CreateButton("Fly Mode", Color3.fromRGB(50, 50, 150), function()
+    -- Créer le contrôleur de vol
+    local Fly = Instance.new("Fly")
+    Fly.Parent = LocalPlayer.Character
+    flyEnabled = true
+    
+    -- Bouton pour fermer le mode vol
+    CreateButton("Stop Fly", Color3.fromRGB(100, 100, 100), function()
+        Fly:Destroy()
+        flyEnabled = false
+    end, Color3.fromRGB(50, 50, 50))
+end, Color3.fromRGB(50, 50, 150))
+
+-- B. SPEED
+CreateButton("Speed x3", Color3.fromRGB(0, 100, 0), function()
+    if Humanoid.WalkSpeed == 16 then
+        Humanoid.WalkSpeed = 48
+    else
+        Humanoid.WalkSpeed = 16
+    end
+end, Color3.fromRGB(0, 100, 0))
+
+-- C. GOD MODE
+CreateButton("God Mode", Color3.fromRGB(200, 150, 0), function()
+    Humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if Humanoid.Health < 100 then
+            Humanoid.Health = 100
+        end
+    end)
+end, Color3.fromRGB(200, 150, 0))
+
+-- D. TP
+CreateButton("TP Aléatoire", Color3.fromRGB(150, 50, 50), function()
+    local pos = CFrame.new(math.random(-100, 100), 100, math.random(-100, 100))
+    Character:SetPrimaryPartCFrame(pos)
+end, Color3.fromRGB(150, 50, 50))
+
+-- 3. GESTION DU TOGGLE (Ouvrir/Fermer)
+ToggleBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    if isOpen then
+        MenuFrame:TweenPosition(UDim2.new(0, 10, 0, 70), "InOut", "Quad", 0.2, true)
+    else
+        MenuFrame:TweenPosition(UDim2.new(0, 500, 0, 70), "InOut", "Quad", 0.2, true)
+    end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    isOpen = false
+    MenuFrame:TweenPosition(UDim2.new(0, 500, 0, 70), "InOut", "Quad", 0.2, true)
+end)
