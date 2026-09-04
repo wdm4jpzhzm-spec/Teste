@@ -1,0 +1,337 @@
+--// MENU MOBILE ULTIME - CORRIGÉ
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local Character
+local Humanoid
+local RootPart
+
+local function UpdateCharacter()
+	Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	Humanoid = Character:WaitForChild("Humanoid")
+	RootPart = Character:WaitForChild("HumanoidRootPart")
+end
+
+UpdateCharacter()
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(0.2)
+	UpdateCharacter()
+end)
+
+--==================================================
+-- VARIABLES
+--==================================================
+
+local flyEnabled = false
+local flyConnection = nil
+local godEnabled = false
+local godConnection = nil
+
+--==================================================
+-- SCREEN GUI
+--==================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MenuFixe"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
+
+--==================================================
+-- BOUTON MENU
+--==================================================
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Size = UDim2.new(0, 60, 0, 60)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 10)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+ToggleBtn.Text = "☰"
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 28
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 12)
+ToggleCorner.Parent = ToggleBtn
+
+--==================================================
+-- MENU
+--==================================================
+
+local MenuFrame = Instance.new("Frame")
+MenuFrame.Name = "MenuFrame"
+MenuFrame.Size = UDim2.new(0, 455, 0, 460)
+MenuFrame.Position = UDim2.new(0, 15, 0, 80)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MenuFrame.BackgroundTransparency = 0.05
+MenuFrame.BorderSizePixel = 0
+MenuFrame.ClipsDescendants = true
+MenuFrame.Visible = false
+MenuFrame.Parent = ScreenGui
+
+local MenuCorner = Instance.new("UICorner")
+MenuCorner.CornerRadius = UDim.new(0, 8)
+MenuCorner.Parent = MenuFrame
+
+--==================================================
+-- TITRE
+--==================================================
+
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(1, -70, 0, 65)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "MENU ULTIME"
+Title.Font = Enum.Font.GothamBold
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 25
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MenuFrame
+
+--==================================================
+-- BOUTON FERMER
+--==================================================
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 55, 0, 55)
+CloseBtn.Position = UDim2.new(1, -65, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(210, 0, 0)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBlack
+CloseBtn.TextSize = 25
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = MenuFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+--==================================================
+-- CONTENEUR DES BOUTONS
+--==================================================
+
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Name = "ButtonContainer"
+ButtonContainer.Size = UDim2.new(1, -20, 1, -80)
+ButtonContainer.Position = UDim2.new(0, 10, 0, 70)
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Parent = MenuFrame
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 10)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.VerticalAlignment = Enum.VerticalAlignment.Top
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = ButtonContainer
+
+--==================================================
+-- CRÉATION DES BOUTONS
+--==================================================
+
+local ButtonNumber = 0
+
+local function CreateButton(text, color, action)
+	ButtonNumber += 1
+
+	local btn = Instance.new("TextButton")
+
+	btn.Name = "Button_" .. ButtonNumber
+	btn.Size = UDim2.new(1, 0, 0, 70)
+	btn.BackgroundColor3 = color
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 20
+	btn.BorderSizePixel = 0
+	btn.LayoutOrder = ButtonNumber
+	btn.AutoButtonColor = true
+
+	btn.Parent = ButtonContainer
+
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 6)
+	Corner.Parent = btn
+
+	-- Une seule connexion : fonctionne souris + tactile
+	btn.Activated:Connect(function()
+		action()
+	end)
+
+	return btn
+end
+
+--==================================================
+-- FLY
+--==================================================
+
+local FlyButton
+
+local function StopFly()
+	flyEnabled = false
+
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+
+	if RootPart then
+		local velocity = RootPart:FindFirstChild("MenuFlyVelocity")
+		if velocity then
+			velocity:Destroy()
+		end
+	end
+
+	if FlyButton then
+		FlyButton.Text = "Mode Vol : OFF"
+	end
+end
+
+local function StartFly()
+	if not Character or not Humanoid or not RootPart then
+		return
+	end
+
+	flyEnabled = true
+
+	local BodyVelocity = Instance.new("BodyVelocity")
+	BodyVelocity.Name = "MenuFlyVelocity"
+	BodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
+	BodyVelocity.Velocity = Vector3.zero
+	BodyVelocity.Parent = RootPart
+
+	flyConnection = RunService.RenderStepped:Connect(function()
+		if not flyEnabled or not Character or not RootPart then
+			return
+		end
+
+		local moveDirection = Humanoid.MoveDirection
+
+		if moveDirection.Magnitude > 0 then
+			BodyVelocity.Velocity = moveDirection * 60
+		else
+			BodyVelocity.Velocity = Vector3.zero
+		end
+	end)
+
+	FlyButton.Text = "Mode Vol : ON"
+end
+
+FlyButton = CreateButton(
+	"Mode Vol : OFF",
+	Color3.fromRGB(50, 50, 150),
+	function()
+		if flyEnabled then
+			StopFly()
+		else
+			StartFly()
+		end
+	end
+)
+
+--==================================================
+-- SPEED +50
+--==================================================
+
+CreateButton(
+	"Speed +50",
+	Color3.fromRGB(0, 110, 0),
+	function()
+		if Humanoid then
+			Humanoid.WalkSpeed = Humanoid.WalkSpeed + 50
+		end
+	end
+)
+
+--==================================================
+-- GOD MODE
+--==================================================
+
+local GodButton
+
+local function StopGod()
+	godEnabled = false
+
+	if godConnection then
+		godConnection:Disconnect()
+		godConnection = nil
+	end
+
+	if GodButton then
+		GodButton.Text = "God Mode : OFF"
+	end
+end
+
+local function StartGod()
+	if not Humanoid then
+		return
+	end
+
+	godEnabled = true
+
+	godConnection = Humanoid.HealthChanged:Connect(function(health)
+		if godEnabled and health < Humanoid.MaxHealth then
+			Humanoid.Health = Humanoid.MaxHealth
+		end
+	end)
+
+	Humanoid.Health = Humanoid.MaxHealth
+
+	GodButton.Text = "God Mode : ON"
+end
+
+GodButton = CreateButton(
+	"God Mode : OFF",
+	Color3.fromRGB(200, 150, 0),
+	function()
+		if godEnabled then
+			StopGod()
+		else
+			StartGod()
+		end
+	end
+)
+
+--==================================================
+-- TP ALÉATOIRE
+--==================================================
+
+CreateButton(
+	"TP Aléatoire",
+	Color3.fromRGB(150, 50, 50),
+	function()
+		if RootPart then
+			local randomX = math.random(-100, 100)
+			local randomZ = math.random(-100, 100)
+
+			RootPart.CFrame = CFrame.new(
+				randomX,
+				100,
+				randomZ
+			)
+		end
+	end
+)
+
+--==================================================
+-- OUVERTURE / FERMETURE
+--==================================================
+
+ToggleBtn.Activated:Connect(function()
+	MenuFrame.Visible = not MenuFrame.Visible
+end)
+
+CloseBtn.Activated:Connect(function()
+	MenuFrame.Visible = false
+end)
