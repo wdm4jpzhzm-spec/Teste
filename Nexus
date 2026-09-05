@@ -1,0 +1,1574 @@
+--// NEXUS MOBILE HUB
+--// LocalScript -> StarterPlayer > StarterPlayerScripts
+
+------------------------------------------------------------
+-- SERVICES
+------------------------------------------------------------
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+
+------------------------------------------------------------
+-- CONFIG
+------------------------------------------------------------
+
+local IMAGE_ID = "rbxassetid://118460956672389"
+
+local Config = {
+	Fly = false,
+	NoClip = false,
+	InfiniteJump = false,
+
+	SpeedEnabled = false,
+	Speed = 32,
+
+	JumpEnabled = false,
+	JumpPower = 75,
+
+	GodMode = false,
+	GravityEnabled = false,
+	Gravity = 196.2,
+
+	FlySpeed = 70,
+
+	Aimbot = false,
+	TeamCheck = true,
+	ThroughWalls = false,
+
+	FOVEnabled = false,
+	FOV = 250,
+
+	MaxDistance = 500,
+	Smoothness = 0.35,
+
+	ESP = false,
+	Crosshair = false,
+
+	InstantInteract = false,
+	AntiAFK = false,
+}
+
+------------------------------------------------------------
+-- CHARACTER
+------------------------------------------------------------
+
+local Character
+local Humanoid
+local RootPart
+local Head
+
+local function LoadCharacter(char)
+	Character = char
+	Humanoid = char:WaitForChild("Humanoid", 10)
+	RootPart = char:WaitForChild("HumanoidRootPart", 10)
+	Head = char:WaitForChild("Head", 10)
+end
+
+if LocalPlayer.Character then
+	LoadCharacter(LocalPlayer.Character)
+end
+
+------------------------------------------------------------
+-- FLY
+------------------------------------------------------------
+
+local FlyAttachment
+local FlyVelocity
+local FlyConnection
+
+local function StopFly()
+	if FlyConnection then
+		FlyConnection:Disconnect()
+		FlyConnection = nil
+	end
+
+	if FlyVelocity then
+		FlyVelocity:Destroy()
+		FlyVelocity = nil
+	end
+
+	if FlyAttachment then
+		FlyAttachment:Destroy()
+		FlyAttachment = nil
+	end
+end
+
+local function StartFly()
+	StopFly()
+
+	if not RootPart or not Humanoid then
+		return
+	end
+
+	FlyAttachment = Instance.new("Attachment")
+	FlyAttachment.Name = "NexusFlyAttachment"
+	FlyAttachment.Parent = RootPart
+
+	FlyVelocity = Instance.new("LinearVelocity")
+	FlyVelocity.Name = "NexusFlyVelocity"
+	FlyVelocity.Attachment0 = FlyAttachment
+	FlyVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	FlyVelocity.MaxForce = math.huge
+	FlyVelocity.VectorVelocity = Vector3.zero
+	FlyVelocity.Parent = RootPart
+
+	FlyConnection = RunService.Heartbeat:Connect(function()
+		if not Config.Fly then
+			return
+		end
+
+		if not RootPart or not RootPart.Parent then
+			return
+		end
+
+		if not Humanoid or Humanoid.Health <= 0 then
+			return
+		end
+
+		-- Utilise uniquement le déplacement du joueur / joystick.
+		local direction = Humanoid.MoveDirection
+
+		if direction.Magnitude > 0.05 then
+			FlyVelocity.VectorVelocity =
+				direction.Unit * Config.FlySpeed
+		else
+			FlyVelocity.VectorVelocity = Vector3.zero
+		end
+	end)
+end
+
+------------------------------------------------------------
+-- RESPAWN
+------------------------------------------------------------
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+	LoadCharacter(char)
+
+	task.wait(0.5)
+
+	if Config.Fly then
+		StartFly()
+	end
+end)
+
+------------------------------------------------------------
+-- GUI
+------------------------------------------------------------
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local OldGui = PlayerGui:FindFirstChild("NexusHub")
+if OldGui then
+	OldGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NexusHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
+
+------------------------------------------------------------
+-- COLORS
+------------------------------------------------------------
+
+local BG = Color3.fromRGB(10, 12, 20)
+local PANEL = Color3.fromRGB(17, 20, 32)
+local PANEL2 = Color3.fromRGB(23, 27, 42)
+local ACCENT = Color3.fromRGB(0, 170, 255)
+local TEXT = Color3.fromRGB(240, 245, 255)
+local MUTED = Color3.fromRGB(145, 155, 175)
+local GREEN = Color3.fromRGB(50, 220, 120)
+local RED = Color3.fromRGB(240, 70, 80)
+
+------------------------------------------------------------
+-- HELPERS
+------------------------------------------------------------
+
+local function Corner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 8)
+	c.Parent = parent
+	return c
+end
+
+local function Stroke(parent, color, thickness)
+	local s = Instance.new("UIStroke")
+	s.Color = color or ACCENT
+	s.Thickness = thickness or 1
+	s.Transparency = 0.35
+	s.Parent = parent
+	return s
+end
+
+local function Padding(parent, value)
+	local p = Instance.new("UIPadding")
+	p.PaddingTop = UDim.new(0, value)
+	p.PaddingBottom = UDim.new(0, value)
+	p.PaddingLeft = UDim.new(0, value)
+	p.PaddingRight = UDim.new(0, value)
+	p.Parent = parent
+end
+
+------------------------------------------------------------
+-- NEXUS FLOATING BUTTON
+------------------------------------------------------------
+
+local NexusButton = Instance.new("ImageButton")
+NexusButton.Name = "NexusButton"
+NexusButton.Size = UDim2.fromOffset(58, 58)
+NexusButton.Position = UDim2.new(0, 15, 0.5, -29)
+NexusButton.BackgroundColor3 = PANEL
+NexusButton.Image = IMAGE_ID
+NexusButton.ScaleType = Enum.ScaleType.Fit
+NexusButton.Parent = ScreenGui
+
+Corner(NexusButton, 16)
+Stroke(NexusButton, ACCENT, 2)
+
+------------------------------------------------------------
+-- DRAG BUTTON
+------------------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPos
+
+NexusButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPos = NexusButton.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not dragging then
+		return
+	end
+
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+
+	local delta = input.Position - dragStart
+
+	NexusButton.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end)
+
+------------------------------------------------------------
+-- MAIN WINDOW
+------------------------------------------------------------
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(350, 455)
+Main.Position = UDim2.new(0.5, -175, 0.5, -227)
+Main.BackgroundColor3 = BG
+Main.Visible = false
+Main.Parent = ScreenGui
+
+Corner(Main, 14)
+Stroke(Main, ACCENT, 1.5)
+
+------------------------------------------------------------
+-- HEADER
+------------------------------------------------------------
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 52)
+Header.BackgroundColor3 = PANEL
+Header.BorderSizePixel = 0
+Header.Parent = Main
+
+Corner(Header, 14)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.fromOffset(15, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "NEXUS"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = TEXT
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(40, 40)
+Close.Position = UDim2.new(1, -46, 0, 6)
+Close.BackgroundColor3 = PANEL2
+Close.Text = "×"
+Close.TextSize = 26
+Close.Font = Enum.Font.GothamBold
+Close.TextColor3 = TEXT
+Close.Parent = Header
+
+Corner(Close, 10)
+
+------------------------------------------------------------
+-- SIDEBAR
+------------------------------------------------------------
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 105, 1, -62)
+Sidebar.Position = UDim2.fromOffset(8, 58)
+Sidebar.BackgroundColor3 = PANEL
+Sidebar.Parent = Main
+
+Corner(Sidebar, 10)
+Padding(Sidebar, 7)
+
+local SideLayout = Instance.new("UIListLayout")
+SideLayout.Padding = UDim.new(0, 5)
+SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SideLayout.Parent = Sidebar
+
+------------------------------------------------------------
+-- CONTENT
+------------------------------------------------------------
+
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -123, 1, -62)
+Content.Position = UDim2.fromOffset(116, 58)
+Content.BackgroundColor3 = PANEL
+Content.Parent = Main
+
+Corner(Content, 10)
+
+------------------------------------------------------------
+-- PAGES
+------------------------------------------------------------
+
+local Pages = {}
+local TabButtons = {}
+local CurrentPage = "Home"
+local LastPage = "Home"
+
+local function CreatePage(name)
+	local page = Instance.new("ScrollingFrame")
+	page.Name = name
+	page.Size = UDim2.new(1, 0, 1, 0)
+	page.BackgroundTransparency = 1
+	page.BorderSizePixel = 0
+	page.ScrollBarThickness = 3
+	page.ScrollBarImageColor3 = ACCENT
+	page.Visible = false
+	page.CanvasSize = UDim2.new(0, 0, 0, 0)
+	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	page.Parent = Content
+
+	Padding(page, 10)
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = page
+
+	Pages[name] = page
+
+	return page
+end
+
+local HomePage = CreatePage("Home")
+local MovementPage = CreatePage("Movement")
+local AimPage = CreatePage("Aim")
+local VisualPage = CreatePage("Visual")
+local PlayersPage = CreatePage("Players")
+local WorldPage = CreatePage("World")
+local UtilityPage = CreatePage("Utility")
+
+------------------------------------------------------------
+-- TAB CREATION
+------------------------------------------------------------
+
+local TabNames = {
+	"Home",
+	"Movement",
+	"Aim",
+	"Visual",
+	"Players",
+	"World",
+	"Utility",
+}
+
+local function ShowPage(name)
+	if not Pages[name] then
+		return
+	end
+
+	CurrentPage = name
+	LastPage = name
+
+	for pageName, page in pairs(Pages) do
+		page.Visible = pageName == name
+	end
+
+	for tabName, button in pairs(TabButtons) do
+		if tabName == name then
+			button.BackgroundColor3 = ACCENT
+			button.TextColor3 = Color3.new(1,1,1)
+		else
+			button.BackgroundColor3 = PANEL2
+			button.TextColor3 = MUTED
+		end
+	end
+end
+
+for i, name in ipairs(TabNames) do
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 38)
+	button.BackgroundColor3 = PANEL2
+	button.Text = name
+	button.Font = Enum.Font.GothamMedium
+	button.TextSize = 12
+	button.TextColor3 = MUTED
+	button.LayoutOrder = i
+	button.Parent = Sidebar
+
+	Corner(button, 8)
+
+	TabButtons[name] = button
+
+	button.Activated:Connect(function()
+		ShowPage(name)
+	end)
+end
+
+------------------------------------------------------------
+-- OPTION CREATOR
+------------------------------------------------------------
+
+local function CreateToggle(parent, text, default, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 42)
+	button.BackgroundColor3 = PANEL2
+	button.Text = ""
+	button.AutoButtonColor = false
+	button.Parent = parent
+
+	Corner(button, 9)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -75, 1, 0)
+	label.Position = UDim2.fromOffset(12, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 13
+	label.TextColor3 = TEXT
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = button
+
+	local state = Instance.new("TextLabel")
+	state.Size = UDim2.fromOffset(52, 25)
+	state.Position = UDim2.new(1, -62, 0.5, -12)
+	state.Font = Enum.Font.GothamBold
+	state.TextSize = 11
+	state.Parent = button
+
+	local enabled = default == true
+
+	local function Update()
+		state.Text = enabled and "ON" or "OFF"
+		state.TextColor3 = enabled and GREEN or MUTED
+	end
+
+	Update()
+
+	button.Activated:Connect(function()
+		enabled = not enabled
+		Update()
+
+		if callback then
+			callback(enabled)
+		end
+	end)
+
+	return button, function()
+		return enabled
+	end
+end
+
+local function CreateSlider(parent, text, min, max, default, callback)
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.new(1, 0, 0, 58)
+	holder.BackgroundColor3 = PANEL2
+	holder.Parent = parent
+
+	Corner(holder, 9)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -20, 0, 25)
+	label.Position = UDim2.fromOffset(10, 3)
+	label.BackgroundTransparency = 1
+	label.Text = text .. ": " .. tostring(default)
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 12
+	label.TextColor3 = TEXT
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = holder
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, -20, 0, 6)
+	bar.Position = UDim2.fromOffset(10, 39)
+	bar.BackgroundColor3 = BG
+	bar.Parent = holder
+
+	Corner(bar, 5)
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = ACCENT
+	fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+	fill.Parent = bar
+
+	Corner(fill, 5)
+
+	local draggingSlider = false
+
+	local function SetValue(value)
+		value = math.clamp(value, min, max)
+		value = math.floor(value * 100) / 100
+
+		local alpha = (value - min) / (max - min)
+		fill.Size = UDim2.new(alpha, 0, 1, 0)
+		label.Text = text .. ": " .. tostring(value)
+
+		if callback then
+			callback(value)
+		end
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			draggingSlider = true
+
+			local x = math.clamp(
+				(input.Position.X - bar.AbsolutePosition.X)
+				/ bar.AbsoluteSize.X,
+				0,
+				1
+			)
+
+			SetValue(min + (max - min) * x)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if not draggingSlider then
+			return
+		end
+
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement
+			and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+
+		local x = math.clamp(
+			(input.Position.X - bar.AbsolutePosition.X)
+			/ bar.AbsoluteSize.X,
+			0,
+			1
+		)
+
+		SetValue(min + (max - min) * x)
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			draggingSlider = false
+		end
+	end)
+
+	return holder
+end
+
+local function CreateSection(parent, text)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 27)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = ACCENT
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = parent
+end
+
+------------------------------------------------------------
+-- HOME
+------------------------------------------------------------
+
+CreateSection(HomePage, "NEXUS")
+
+local Welcome = Instance.new("TextLabel")
+Welcome.Size = UDim2.new(1, 0, 0, 70)
+Welcome.BackgroundColor3 = PANEL2
+Welcome.Text = "NEXUS MOBILE HUB\n\nMenu prêt à utiliser."
+Welcome.Font = Enum.Font.GothamMedium
+Welcome.TextSize = 13
+Welcome.TextColor3 = TEXT
+Welcome.TextWrapped = true
+Welcome.Parent = HomePage
+
+Corner(Welcome, 10)
+
+------------------------------------------------------------
+-- MOVEMENT
+------------------------------------------------------------
+
+CreateSection(MovementPage, "MOVEMENT")
+
+CreateToggle(MovementPage, "Fly", false, function(value)
+	Config.Fly = value
+
+	if value then
+		StartFly()
+	else
+		StopFly()
+	end
+end)
+
+CreateToggle(MovementPage, "NoClip", false, function(value)
+	Config.NoClip = value
+end)
+
+CreateToggle(MovementPage, "Infinite Jump", false, function(value)
+	Config.InfiniteJump = value
+end)
+
+CreateToggle(MovementPage, "Speed", false, function(value)
+	Config.SpeedEnabled = value
+end)
+
+CreateSlider(MovementPage, "Speed", 16, 150, Config.Speed, function(value)
+	Config.Speed = value
+end)
+
+CreateToggle(MovementPage, "JumpPower", false, function(value)
+	Config.JumpEnabled = value
+end)
+
+CreateSlider(MovementPage, "JumpPower", 50, 200, Config.JumpPower, function(value)
+	Config.JumpPower = value
+end)
+
+CreateToggle(MovementPage, "God Mode", false, function(value)
+	Config.GodMode = value
+end)
+
+CreateToggle(MovementPage, "Custom Gravity", false, function(value)
+	Config.GravityEnabled = value
+end)
+
+CreateSlider(MovementPage, "Gravity", 0, 300, Config.Gravity, function(value)
+	Config.Gravity = value
+end)
+
+CreateSlider(MovementPage, "Fly Speed", 20, 200, Config.FlySpeed, function(value)
+	Config.FlySpeed = value
+end)
+
+------------------------------------------------------------
+-- AIM
+------------------------------------------------------------
+
+CreateSection(AimPage, "AIM ASSIST")
+
+CreateToggle(AimPage, "Aimbot", false, function(value)
+	Config.Aimbot = value
+end)
+
+CreateToggle(AimPage, "Team Check", true, function(value)
+	Config.TeamCheck = value
+end)
+
+CreateToggle(AimPage, "Through Walls", false, function(value)
+	Config.ThroughWalls = value
+end)
+
+CreateSlider(AimPage, "FOV", 50, 800, Config.FOV, function(value)
+	Config.FOV = value
+end)
+
+CreateSlider(AimPage, "Max Distance", 50, 3000, Config.MaxDistance, function(value)
+	Config.MaxDistance = value
+end)
+
+CreateSlider(AimPage, "Smoothness", 0.05, 1, Config.Smoothness, function(value)
+	Config.Smoothness = value
+end)
+
+------------------------------------------------------------
+-- VISUAL
+------------------------------------------------------------
+
+CreateSection(VisualPage, "VISUAL")
+
+CreateToggle(VisualPage, "FOV Circle", false, function(value)
+	Config.FOVEnabled = value
+end)
+
+CreateToggle(VisualPage, "ESP", false, function(value)
+	Config.ESP = value
+end)
+
+CreateToggle(VisualPage, "Crosshair", false, function(value)
+	Config.Crosshair = value
+end)
+
+------------------------------------------------------------
+-- FOV CIRCLE
+------------------------------------------------------------
+
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "FOVCircle"
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.Size = UDim2.fromOffset(Config.FOV * 2, Config.FOV * 2)
+FOVCircle.Position = UDim2.fromScale(0.5, 0.5)
+FOVCircle.Visible = false
+FOVCircle.ZIndex = 20
+FOVCircle.Parent = ScreenGui
+
+Corner(FOVCircle, 999)
+
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Color = ACCENT
+FOVStroke.Thickness = 2
+FOVStroke.Transparency = 0.15
+FOVStroke.Parent = FOVCircle
+
+------------------------------------------------------------
+-- CROSSHAIR
+------------------------------------------------------------
+
+local Crosshair = Instance.new("TextLabel")
+Crosshair.Size = UDim2.fromOffset(50, 50)
+Crosshair.Position = UDim2.fromScale(0.5, 0.5)
+Crosshair.AnchorPoint = Vector2.new(0.5, 0.5)
+Crosshair.BackgroundTransparency = 1
+Crosshair.Text = "+"
+Crosshair.Font = Enum.Font.GothamBold
+Crosshair.TextSize = 30
+Crosshair.TextColor3 = ACCENT
+Crosshair.Visible = false
+Crosshair.ZIndex = 21
+Crosshair.Parent = ScreenGui
+
+------------------------------------------------------------
+-- AIMBOT
+------------------------------------------------------------
+
+local LockedTarget = nil
+
+local function IsAlive(player)
+	if not player or player == LocalPlayer then
+		return false
+	end
+
+	local char = player.Character
+	if not char then
+		return false
+	end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local head = char:FindFirstChild("Head")
+	local root = char:FindFirstChild("HumanoidRootPart")
+
+	if not hum or hum.Health <= 0 then
+		return false
+	end
+
+	if not head or not root then
+		return false
+	end
+
+	return true
+end
+
+local function IsValidTarget(player)
+	if not IsAlive(player) then
+		return false
+	end
+
+	if Config.TeamCheck
+		and LocalPlayer.Team ~= nil
+		and player.Team ~= nil
+		and LocalPlayer.Team == player.Team then
+
+		return false
+	end
+
+	local char = player.Character
+	local root = char:FindFirstChild("HumanoidRootPart")
+
+	if not RootPart or not root then
+		return false
+	end
+
+	local distance = (RootPart.Position - root.Position).Magnitude
+
+	if distance > Config.MaxDistance then
+		return false
+	end
+
+	return true
+end
+
+local function HasLineOfSight(head)
+	if Config.ThroughWalls then
+		return true
+	end
+
+	if not Character then
+		return false
+	end
+
+	local origin = workspace.CurrentCamera.CFrame.Position
+	local direction = head.Position - origin
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {
+		Character
+	}
+
+	local result = workspace:Raycast(
+		origin,
+		direction,
+		params
+	)
+
+	if not result then
+		return true
+	end
+
+	return result.Instance:IsDescendantOf(head.Parent)
+end
+
+local function GetClosestTarget()
+	local Camera = workspace.CurrentCamera
+
+	if not Camera or not RootPart then
+		return nil
+	end
+
+	local viewport = Camera.ViewportSize
+	local center = Vector2.new(
+		viewport.X / 2,
+		viewport.Y / 2
+	)
+
+	local closest = nil
+	local closestDistance = math.huge
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if IsValidTarget(player) then
+
+			local char = player.Character
+			local head = char and char:FindFirstChild("Head")
+
+			if head then
+				local screenPos, visible =
+					Camera:WorldToViewportPoint(head.Position)
+
+				if visible or Config.ThroughWalls then
+
+					local screenDistance =
+						(Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+
+					if screenDistance <= Config.FOV then
+
+						if HasLineOfSight(head) then
+							if screenDistance < closestDistance then
+								closestDistance = screenDistance
+								closest = player
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return closest
+end
+
+RunService:BindToRenderStep(
+	"NexusAimbot",
+	Enum.RenderPriority.Camera.Value + 1,
+	function()
+		local Camera = workspace.CurrentCamera
+
+		if not Camera then
+			return
+		end
+
+		----------------------------------------------------
+		-- FOV
+		----------------------------------------------------
+
+		FOVCircle.Visible = Config.FOVEnabled
+		FOVCircle.Size = UDim2.fromOffset(
+			Config.FOV * 2,
+			Config.FOV * 2
+		)
+
+		FOVCircle.Position = UDim2.fromScale(0.5, 0.5)
+
+		----------------------------------------------------
+		-- CROSSHAIR
+		----------------------------------------------------
+
+		Crosshair.Visible = Config.Crosshair
+
+		----------------------------------------------------
+		-- AIMBOT
+		----------------------------------------------------
+
+		if not Config.Aimbot then
+			LockedTarget = nil
+			return
+		end
+
+		-- Garde la même cible tant qu'elle reste valide.
+		if not IsValidTarget(LockedTarget) then
+			LockedTarget = GetClosestTarget()
+		end
+
+		if not LockedTarget then
+			return
+		end
+
+		local char = LockedTarget.Character
+		local targetHead = char and char:FindFirstChild("Head")
+
+		if not targetHead then
+			LockedTarget = nil
+			return
+		end
+
+		if not Config.ThroughWalls and not HasLineOfSight(targetHead) then
+			LockedTarget = nil
+			return
+		end
+
+		local viewport = Camera.ViewportSize
+
+		local center = Vector2.new(
+			viewport.X / 2,
+			viewport.Y / 2
+		)
+
+		local screenPos = Camera:WorldToViewportPoint(
+			targetHead.Position
+		)
+
+		local screenDistance =
+			(Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+
+		if screenDistance > Config.FOV then
+			LockedTarget = nil
+			return
+		end
+
+		local desired =
+			CFrame.lookAt(
+				Camera.CFrame.Position,
+				targetHead.Position
+			)
+
+		Camera.CFrame =
+			Camera.CFrame:Lerp(
+				desired,
+				Config.Smoothness
+			)
+	end
+)
+
+------------------------------------------------------------
+-- ESP
+------------------------------------------------------------
+
+local ESPObjects = {}
+
+local function RemoveESP(player)
+	local data = ESPObjects[player]
+
+	if data then
+		if data.Highlight then
+			data.Highlight:Destroy()
+		end
+
+		if data.Billboard then
+			data.Billboard:Destroy()
+		end
+
+		ESPObjects[player] = nil
+	end
+end
+
+local function CreateESP(player)
+	if player == LocalPlayer then
+		return
+	end
+
+	RemoveESP(player)
+
+	if not Config.ESP then
+		return
+	end
+
+	local char = player.Character
+
+	if not char then
+		return
+	end
+
+	local head = char:FindFirstChild("Head")
+
+	if not head then
+		return
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "NexusESP"
+	highlight.Adornee = char
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillTransparency = 0.65
+	highlight.OutlineTransparency = 0
+	highlight.Parent = ScreenGui
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "NexusESPName"
+	billboard.Adornee = head
+	billboard.Size = UDim2.fromOffset(150, 40)
+	billboard.StudsOffset = Vector3.new(0, 2.7, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = ScreenGui
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = player.DisplayName
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = TEXT
+	label.TextStrokeTransparency = 0.3
+	label.Parent = billboard
+
+	ESPObjects[player] = {
+		Highlight = highlight,
+		Billboard = billboard,
+	}
+end
+
+local function RefreshESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			if Config.ESP then
+				CreateESP(player)
+			else
+				RemoveESP(player)
+			end
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.5)
+
+		if Config.ESP then
+			CreateESP(player)
+		end
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	RemoveESP(player)
+
+	if LockedTarget == player then
+		LockedTarget = nil
+	end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		player.CharacterAdded:Connect(function()
+			task.wait(0.5)
+
+			if Config.ESP then
+				CreateESP(player)
+			end
+		end)
+	end
+end
+
+------------------------------------------------------------
+-- NOCLIP
+------------------------------------------------------------
+
+local OriginalCollision = {}
+
+RunService.Stepped:Connect(function()
+	if not Character then
+		return
+	end
+
+	for _, obj in ipairs(Character:GetDescendants()) do
+		if obj:IsA("BasePart") then
+
+			if OriginalCollision[obj] == nil then
+				OriginalCollision[obj] = obj.CanCollide
+			end
+
+			if Config.NoClip then
+				obj.CanCollide = false
+			else
+				if OriginalCollision[obj] ~= nil then
+					obj.CanCollide = OriginalCollision[obj]
+				end
+			end
+		end
+	end
+end)
+
+------------------------------------------------------------
+-- INFINITE JUMP
+------------------------------------------------------------
+
+UserInputService.JumpRequest:Connect(function()
+	if not Config.InfiniteJump then
+		return
+	end
+
+	if Humanoid then
+		Humanoid:ChangeState(
+			Enum.HumanoidStateType.Jumping
+		)
+	end
+end)
+
+------------------------------------------------------------
+-- MOVEMENT / GODMODE
+------------------------------------------------------------
+
+RunService.Heartbeat:Connect(function()
+
+	if Humanoid and Humanoid.Parent then
+
+		if Config.SpeedEnabled then
+			Humanoid.WalkSpeed = Config.Speed
+		else
+			Humanoid.WalkSpeed = 16
+		end
+
+		if Config.JumpEnabled then
+			Humanoid.UseJumpPower = true
+			Humanoid.JumpPower = Config.JumpPower
+		else
+			Humanoid.UseJumpPower = true
+			Humanoid.JumpPower = 50
+		end
+
+		if Config.GodMode then
+			if Humanoid.Health > 0 then
+				Humanoid.Health = Humanoid.MaxHealth
+			end
+		end
+	end
+
+	if Config.GravityEnabled then
+		workspace.Gravity = Config.Gravity
+	end
+end)
+
+------------------------------------------------------------
+-- INSTANT INTERACT
+------------------------------------------------------------
+
+local OriginalPromptDuration = {}
+
+local function UpdatePrompt(prompt)
+	if not prompt:IsA("ProximityPrompt") then
+		return
+	end
+
+	if OriginalPromptDuration[prompt] == nil then
+		OriginalPromptDuration[prompt] = prompt.HoldDuration
+	end
+
+	if Config.InstantInteract then
+		prompt.HoldDuration = 0
+	else
+		prompt.HoldDuration =
+			OriginalPromptDuration[prompt]
+	end
+end
+
+local function RefreshPrompts()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			UpdatePrompt(obj)
+		end
+	end
+end
+
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") then
+		task.wait()
+
+		if OriginalPromptDuration[obj] == nil then
+			OriginalPromptDuration[obj] =
+				obj.HoldDuration
+		end
+
+		UpdatePrompt(obj)
+	end
+end)
+
+------------------------------------------------------------
+-- PLAYERS
+------------------------------------------------------------
+
+CreateSection(PlayersPage, "PLAYERS")
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(1, 0, 0, 40)
+SearchBox.BackgroundColor3 = PANEL2
+SearchBox.PlaceholderText = "Rechercher un joueur..."
+SearchBox.Text = ""
+SearchBox.TextColor3 = TEXT
+SearchBox.PlaceholderColor3 = MUTED
+SearchBox.Font = Enum.Font.Gotham
+SearchBox.TextSize = 12
+SearchBox.ClearTextOnFocus = false
+SearchBox.Parent = PlayersPage
+
+Corner(SearchBox, 9)
+
+local PlayerList = Instance.new("Frame")
+PlayerList.Size = UDim2.new(1, 0, 0, 0)
+PlayerList.AutomaticSize = Enum.AutomaticSize.Y
+PlayerList.BackgroundTransparency = 1
+PlayerList.Parent = PlayersPage
+
+local PlayerLayout = Instance.new("UIListLayout")
+PlayerLayout.Padding = UDim.new(0, 6)
+PlayerLayout.Parent = PlayerList
+
+local function ClearPlayerList()
+	for _, child in ipairs(PlayerList:GetChildren()) do
+		if not child:IsA("UIListLayout") then
+			child:Destroy()
+		end
+	end
+end
+
+local function CreatePlayerList()
+	ClearPlayerList()
+
+	local query = string.lower(SearchBox.Text)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+
+			local name =
+				string.lower(player.DisplayName .. " " .. player.Name)
+
+			if query == "" or string.find(name, query, 1, true) then
+
+				local row = Instance.new("Frame")
+				row.Size = UDim2.new(1, 0, 0, 42)
+				row.BackgroundColor3 = PANEL2
+				row.Parent = PlayerList
+
+				Corner(row, 8)
+
+				local label = Instance.new("TextLabel")
+				label.Size = UDim2.new(1, -70, 1, 0)
+				label.Position = UDim2.fromOffset(10, 0)
+				label.BackgroundTransparency = 1
+				label.Text =
+					player.DisplayName .. "  @" .. player.Name
+				label.Font = Enum.Font.GothamMedium
+				label.TextSize = 11
+				label.TextColor3 = TEXT
+				label.TextXAlignment = Enum.TextXAlignment.Left
+				label.Parent = row
+
+				local tp = Instance.new("TextButton")
+				tp.Size = UDim2.fromOffset(55, 30)
+				tp.Position = UDim2.new(1, -62, 0.5, -15)
+				tp.BackgroundColor3 = ACCENT
+				tp.Text = "TP"
+				tp.Font = Enum.Font.GothamBold
+				tp.TextSize = 11
+				tp.TextColor3 = Color3.new(1,1,1)
+				tp.Parent = row
+
+				Corner(tp, 7)
+
+				tp.Activated:Connect(function()
+					local targetChar = player.Character
+					local targetRoot =
+						targetChar
+						and targetChar:FindFirstChild("HumanoidRootPart")
+
+					if RootPart and targetRoot then
+						RootPart.CFrame =
+							targetRoot.CFrame
+							* CFrame.new(0, 0, 4)
+					end
+				end)
+			end
+		end
+	end
+end
+
+SearchBox:GetPropertyChangedSignal("Text"):Connect(CreatePlayerList)
+
+Players.PlayerAdded:Connect(function()
+	task.wait(0.2)
+	CreatePlayerList()
+end)
+
+Players.PlayerRemoving:Connect(function()
+	task.wait()
+	CreatePlayerList()
+end)
+
+------------------------------------------------------------
+-- WORLD
+------------------------------------------------------------
+
+CreateSection(WorldPage, "WORLD")
+
+local function CreateAction(parent, text, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 42)
+	button.BackgroundColor3 = PANEL2
+	button.Text = text
+	button.Font = Enum.Font.GothamMedium
+	button.TextSize = 12
+	button.TextColor3 = TEXT
+	button.Parent = parent
+
+	Corner(button, 9)
+
+	button.Activated:Connect(callback)
+
+	return button
+end
+
+CreateAction(WorldPage, "Random TP", function()
+	if not RootPart then
+		return
+	end
+
+	local randomPosition =
+		Vector3.new(
+			math.random(-500, 500),
+			50,
+			math.random(-500, 500)
+		)
+
+	RootPart.CFrame =
+		CFrame.new(randomPosition)
+end)
+
+CreateAction(WorldPage, "TP Spawn", function()
+	if not RootPart then
+		return
+	end
+
+	local spawnLocation
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("SpawnLocation") then
+			spawnLocation = obj
+			break
+		end
+	end
+
+	if spawnLocation then
+		RootPart.CFrame =
+			spawnLocation.CFrame
+			* CFrame.new(0, 4, 0)
+	end
+end)
+
+local Waypoint = nil
+
+CreateAction(WorldPage, "Save Waypoint", function()
+	if RootPart then
+		Waypoint = RootPart.CFrame
+	end
+end)
+
+CreateAction(WorldPage, "TP Waypoint", function()
+	if RootPart and Waypoint then
+		RootPart.CFrame = Waypoint
+	end
+end)
+
+------------------------------------------------------------
+-- UTILITY
+------------------------------------------------------------
+
+CreateSection(UtilityPage, "UTILITY")
+
+CreateToggle(UtilityPage, "Instant Interact", false, function(value)
+	Config.InstantInteract = value
+	RefreshPrompts()
+end)
+
+CreateToggle(UtilityPage, "Anti AFK", false, function(value)
+	Config.AntiAFK = value
+end)
+
+CreateAction(UtilityPage, "Reset Character", function()
+	if Humanoid then
+		Humanoid.Health = 0
+	end
+end)
+
+CreateAction(UtilityPage, "Rejoin", function()
+	TeleportService:Teleport(
+		game.PlaceId,
+		LocalPlayer
+	)
+end)
+
+------------------------------------------------------------
+-- ANTI AFK
+------------------------------------------------------------
+
+LocalPlayer.Idled:Connect(function()
+	if not Config.AntiAFK then
+		return
+	end
+
+	VirtualUser:CaptureController()
+	VirtualUser:ClickButton2(
+		Vector2.new(0, 0)
+	)
+end)
+
+------------------------------------------------------------
+-- OPEN / CLOSE
+------------------------------------------------------------
+
+local Open = false
+
+local function OpenMenu()
+	if Open then
+		return
+	end
+
+	Open = true
+	Main.Visible = true
+
+	Main.Size = UDim2.fromOffset(320, 415)
+
+	TweenService:Create(
+		Main,
+		TweenInfo.new(
+			0.22,
+			Enum.EasingStyle.Quint,
+			Enum.EasingDirection.Out
+		),
+		{
+			Size = UDim2.fromOffset(350, 455)
+		}
+	):Play()
+end
+
+local function CloseMenu()
+	if not Open then
+		return
+	end
+
+	Open = false
+
+	local tween = TweenService:Create(
+		Main,
+		TweenInfo.new(
+			0.18,
+			Enum.EasingStyle.Quint,
+			Enum.EasingDirection.In
+		),
+		{
+			Size = UDim2.fromOffset(320, 415)
+		}
+	)
+
+	tween:Play()
+
+	tween.Completed:Connect(function()
+		if not Open then
+			Main.Visible = false
+		end
+	end)
+end
+
+NexusButton.Activated:Connect(function()
+	if Open then
+		CloseMenu()
+	else
+		OpenMenu()
+	end
+end)
+
+Close.Activated:Connect(CloseMenu)
+
+------------------------------------------------------------
+-- INITIALIZATION
+------------------------------------------------------------
+
+-- IMPORTANT :
+-- Le FOV est volontairement OFF au démarrage.
+Config.FOVEnabled = false
+
+-- L'ESP est volontairement OFF au démarrage.
+Config.ESP = false
+
+-- Aimbot OFF au démarrage.
+Config.Aimbot = false
+
+FOVCircle.Visible = false
+Crosshair.Visible = false
+
+ShowPage(LastPage)
+
+CreatePlayerList()
+
+workspace.Gravity = 196.2
+
+print("NEXUS HUB chargé correctement.")
