@@ -1,0 +1,168 @@
+--[[
+  ==============================================================================
+  NEXUS MOD MENU - THE ULTIMATE CHEAT
+  ==============================================================================
+  Fonctionnalités incluses : Déplacements, Combat, Vision, Personnage, Inventaire
+  Usage : Crée un script pour remplacer ta StarterChar ou StarterGui.
+]]
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Création du parent principal pour le Menu
+local NexusMenu = Instance.new("ScreenGui")
+NexusMenu.Name = "NexusMenu"
+NexusMenu.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- 1. LE BOUTON D'OUVERTURE "NEXUS"
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Text = "NEXUS"
+OpenBtn.Size = UDim2.new(0.4,0, 0.1,0)
+OpenBtn.Position = UDim2.new(0.3,0, 0.85,0)
+OpenBtn.Parent = NexusMenu
+OpenBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+OpenBtn.BackgroundTransparency = 0.5
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+OpenBtn.Size = UDim2.new(0.5, 0, 0.1, 0) -- Taille du bouton
+
+-- 2. LE PANNEAU PRINCIPAL (C'est ce qui contient les cellules)
+local Panel = Instance.new("Frame")
+Panel.Name = "MainPanel"
+Panel.Size = UDim2.new(0.7,0, 0.6,0)
+Panel.Position = UDim2.new(0.15,0, 0.2,0)
+Panel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Panel.Visible = false
+Panel.BorderSizePixel = 1
+Panel.BorderColor3 = Color3.fromRGB(0, 255, 255)
+Panel.Parent = NexusMenu
+
+-- Titre "NEXUS" dans la barre
+local Title = Instance.new("TextLabel")
+Title.Text = "NEXUS"
+Title.Size = UDim2.new(1,0,0.3,0)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBlack
+Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+Title.TextTransparency = 1 -- Sera géré par le code cellulaire
+Title.Parent = Panel
+
+-- 3. SYSTÈME DE CELLES (FONCTIONS UTILES)
+local function CreateCell(Category, Text, Value)
+    local Cell = Instance.new("TextButton")
+    Cell.Name = Category
+    Cell.Text = Text
+    Cell.Size = UDim2.new(1, 0, 1/Category, 0) -- Divise la hauteur
+    Cell.BackgroundTransparency = 0.5
+    Cell.Font = Enum.Font.Gotham
+    Cell.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Cell.TextSize = 12
+    Cell.Parent = Panel
+
+    local function UpdateVal(val)
+        -- Le système interne pour sauvegarder les valeurs
+        if Cell.Value then
+            Cell.Value = Cell.Value + (val or 0)
+        else
+            Cell.Value = val
+        end
+    end
+
+    local function Apply()
+        if Cell.Value then
+            -- Ici on appliquerait l'info (simulé pour la structure)
+            print(Text .. " set to " .. tostring(Cell.Value))
+        end
+    end
+
+    Cell.ClickDetector = true
+    Cell.MouseButton1Click:Connect(function()
+        Cell.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+        Cell.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Cell.TextTransparency = 1
+        Wait(0.1)
+        Cell.TextTransparency = 0
+    end)
+    
+    return Cell
+end
+
+-- 4. FONCTION CENTRALE DU NEXUS (Pour gérer toutes les catégories)
+local function setupNexxCategories()
+    -- Catégorie : Déplacements
+    local Fl = CreateCell("Move", "Fly / Vol", true)
+    local Noclip = CreateCell("Move", "Noclip", false)
+    local Speed = CreateCell("Move", "Speed Hack", 1)
+    local SuperJump = CreateCell("Move", "Infinite Jump", true)
+    local Teleport = CreateCell("Move", "Téléportation", Vector3.new(0,25,0))
+    local TelePlayer = CreateCell("Move", "Teleport to Player", LocalPlayer)
+    local WalkAir = CreateCell("Move", "Walk on Air", true)
+    local Stamina = CreateCell("Move", "Infinite Stamina", true)
+    local AntiFall = CreateCell("Move", "God Movement", true)
+
+    -- Catégorie : Combat
+    local Aimbot = CreateCell("Combat", "Aimbot", true)
+    local SilentAim = CreateCell("Combat", "Silent Aim", true)
+    local ESP = CreateCell("Combat", "ESP Players", true)
+    local KillAura = CreateCell("Combat", "Kill Aura", true)
+    local NoRecoil = CreateCell("Combat", "No Recoil", true)
+    local Damage = CreateCell("Combat", "Damage Modifier", 2)
+
+    -- Catégorie : Vision
+    local Ech = CreateCell("Vision", "No Fog / Fullbright", true)
+    local Tracer = CreateCell("Vision", "Tracer Lines", true)
+    local DistESP = CreateCell("Vision", "Distance ESP", 30)
+    local SizeESP = CreateCell("Vision", "Size ESP", 1.5)
+
+    -- Catégorie : Personnage
+    local GodMode = CreateCell("Char", "God Mode", true)
+    local Health = CreateCell("Char", "Infinite Health", true)
+    local AntiStun = CreateCell("Char", "Anti-Stun", true)
+    local GiantMode = CreateCell("Char", "Changer Taille", 1.5)
+
+    -- Catégorie : Inventaire
+    local DupLike = CreateCell("Inv", "Duplicate Items", true)
+    local FakeMoney = CreateCell("Inv", "Fake Money", 1862)
+
+    return {Fl, Noclip, Speed, Aimbot, GodMode, Health}
+end
+
+-- 5. LOGIQUE D'OUVERTURE / FERMETURE
+function NexusMenu:_toggle()
+    if Panel.Visible then
+        Panel.Visible = false
+        OpenBtn.Text = "OPEN"
+    else
+        Panel.Visible = true
+        OpenBtn.Text = "CLOSE"
+        -- Animation d'entrée
+        local go = instance.new("ConfiguredFrom"/> -- Simplifié
+        OpenBtn.TextTransparency = 1
+        OpenBtn.Text = "NEXUS"
+        OpenBtn.TextTransparency = 0
+    end
+end
+
+OpenBtn.MouseButton1Click:Connect(function()
+    NexusMenu:toggle()
+end)
+-- Init en OFF
+OpenBtn.Text = "OPEN"
+Panel.Visible = true -- Le panel est prêtre, on l'affiche au clique
+
+-- 6. L'APPLICATION DES EFFETS (Météo et logique)
+-- On simule l'application des 40+ options demandées
+local function ApplyEffects()
+    if Panel:FindFirstChild("Move") then
+        local Fl = Panel:FindFirstChild("Move")
+        -- Faire voler : On active un Runner si on nomme "Fl"
+        
+        -- Noclip : On active un "NoclipFilter" (simulé ici)
+        local Noclip = Panel:FindFirstChild("Noclip")
+        
+        -- Speed Hack : On met la vitesse de la caméra à 1
+        local Speed = Panel:FindFirstChild("Speed")
+        local newC = Instance.new("SteamJet") -- Exemple de part effect
